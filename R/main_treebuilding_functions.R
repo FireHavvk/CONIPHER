@@ -818,7 +818,9 @@ treebuilding_plot <- function(sample_pyclone_tree) {
   adjust_noisy_clusters_prop <- sample_pyclone_tree$parameters$adjust_noisy_clusters_prop
   min_ccf <- sample_pyclone_tree$parameters$min_ccf
   min_cluster_size           <- sample_pyclone_tree$parameters$min_cluster_size
-
+  #labels <- sample_pyclone_tree$sampleLable
+  #variants <- sample_pyclone_tree$variants
+  
   nested_pyclone <- sample_pyclone_tree$nested_pyclone
   pyclone_tree   <- sample_pyclone_tree$graph_pyclone
   clonality_table <- sample_pyclone_tree$clonality_out$clonality_table_corrected
@@ -829,24 +831,28 @@ treebuilding_plot <- function(sample_pyclone_tree) {
   {
     cpn_removed_clusters <- NA
   }
-
+  
   merged_clusters <- sample_pyclone_tree$merged_clusters
-
+  clus <- unique(append(pyclone_tree$default_tree[,1], pyclone_tree$default_tree[,2]))
+  clus <- as.character(sort(as.numeric(clus)))
+  nested_pyclone$ccf_cluster_table <- nested_pyclone$ccf_cluster_table[clus,]
+  clonality_table <- clonality_table[clus,]
+  
   ### Plot trees -- AUTOMATIC
   date <- gsub('-', '', substr(Sys.time(), 1, 10))
-
-  pdfname <- file.path(generalSave, 'pytree_and_bar.pdf')
-
+  
+  pdfname <- file.path(generalSave, 'pytree_and_bar_newplot.pdf')
+  
   height.mult.factor <- ceiling(nrow(nested_pyclone$ccf_cluster_table)/25)
   width.mult.factor  <- ceiling(nrow(nested_pyclone$ccf_cluster_table)/25)
-
-
+  
+  
   pdf(pdfname, width=22*width.mult.factor, height=12*height.mult.factor)
   {
     par(mar=c(0,0,0,0))
     layout(cbind(1:(nrow(nested_pyclone$ccf_cluster_table)+2),rep(nrow(nested_pyclone$ccf_cluster_table)+3,nrow(nested_pyclone$ccf_cluster_table)+2),rep(nrow(nested_pyclone$ccf_cluster_table)+3,nrow(nested_pyclone$ccf_cluster_table)+2)))
     require(beeswarm)
-
+    
     tmp <- nested_pyclone$ccf_cluster_table
     main <- paste(substr(colnames(tmp)[1], 1, 8), '\ Phylo CCF values', sep = '')
     colnames(tmp) <- gsub(paste0(substr(colnames(tmp)[1], 1, 8), "_"), "", colnames(tmp))
@@ -854,25 +860,27 @@ treebuilding_plot <- function(sample_pyclone_tree) {
     plot.new()
     par(mar=c(2,2,2,2))
     title(main, cex = 2)
-
-    colours.to.use <- color.tree(1:nrow(nested_pyclone$ccf_cluster_table))
-
+    
+    colours.to.use <- setNames(color.tree(pyclone_tree$edgelength), names(pyclone_tree$edgelength))[clus]
+    colours.to.use <- unname(colours.to.use)
+    
+    
     par(mar=c(0.1,5,0.1,2),lend=1)
-
+    
     for (j in 1:nrow(nested_pyclone$ccf_cluster_table))
     {
-
+      
       if(j==1)
       {
-        border.col <- ifelse(clonality_table[j,]=='clonal','black','grey')
+        border.col <- ifelse(clonality_table[j,]=='clonal','purple','orange')
         bp <- barplot(nested_pyclone$ccf_cluster_table[j,],las=1,col=colours.to.use[j],border=border.col,names="",ylab=paste("Cl",rownames(nested_pyclone$ccf_cluster_table)[j],sep=" "),ylim=c(0,115),yaxt='n',cex.axis=1.25)
-
+        
       }
       if(j!=1)
       {
-        border.col <- ifelse(clonality_table[j,]=='clonal','black','grey')
+        border.col <- ifelse(clonality_table[j,]=='clonal','purple','orange')
         bp <- barplot(nested_pyclone$ccf_cluster_table[j,],las=1,col=colours.to.use[j],border=border.col,names="",ylab=paste("Cl",rownames(nested_pyclone$ccf_cluster_table)[j],sep=" "),ylim=c(0,115),yaxt='n',cex.axis=1.25)
-
+        
       }
       axis(side = 2,at = c(0,50,100),labels=c(c(0,50,100)),las=1)
       if(j ==nrow(nested_pyclone$ccf_cluster_table))
@@ -880,14 +888,14 @@ treebuilding_plot <- function(sample_pyclone_tree) {
         axis(side=1,at=bp,labels=gsub(paste0(substr(colnames(nested_pyclone$ccf_cluster_table)[1], 1, 8), "_"), "",colnames(nested_pyclone$ccf_cluster_table))
              ,tick=FALSE
              ,cex.axis=1.25)
-
+        
       }
       abline(h=0)
       abline(h=100,lty='dashed')
       abline(h=50,lty='dashed')
       for (bar in 1:length(bp))
       {
-
+        
         beeswarm(test_pyclone[test_pyclone[,'PycloneCluster']%in%rownames(nested_pyclone$ccf_cluster_table)[j],grep('PhyloCCF',colnames(test_pyclone))[bar]]*100
                  ,at=bp[bar]
                  ,add=TRUE
@@ -901,25 +909,33 @@ treebuilding_plot <- function(sample_pyclone_tree) {
         text(x=bp[bar],y=25,labels=nested_pyclone$ccf_cluster_table[j,bar],cex =1.5)
       }
     }
-
+    #plot.new()
+    #par(mar=c(2,2,2,2))
+    #legend("top", legend = c("Clonal", "Subclonal"), fill = c("purple", "orange"), title = "Clonality", cex = 1.2, xpd = TRUE, ncol = 2, bty = "n")
+    
     plot.new()
     par(mar=c(2.1, 2.1, 4.1, 38), xpd=TRUE)
-
+    
     g <- graph.data.frame(pyclone_tree$default_tree,directed = FALSE)
     indx <- V(g)$name
     vcol <- setNames(color.tree(pyclone_tree$edgelength), names(pyclone_tree$edgelength))[indx]
-
+    vcol_frame <- vcol
+    
+    for(num in indx){
+      vcol_frame[num] <- ifelse("clonal" %in% clonality_table[num,], "purple", "orange")
+    }
+    
     l <- layout_as_tree(g, root = pyclone_tree$trunk)
-
+    
     pie.size <- ncol(sample_pyclone_tree$nested_pyclone$ccf_cluster_table)
     node.shape <- setNames(rep('pie', length(vcol)), names(vcol))
     pie.slices <- lapply(1:length(vcol), function(x) rep(1, pie.size))
     empty.col = '#bdbdbd'#'white'
-
+    
     node_size_factor <- log2(max(pyclone_tree$edgelength)) / 30
     node.size <- log2(pyclone_tree$edgelength) / node_size_factor
     node.size <- node.size[names(node.shape)]
-
+    
     pie.colors <- sample_pyclone_tree$nested_pyclone$ccf_cluster_table[match(names(vcol), rownames(sample_pyclone_tree$nested_pyclone$ccf_cluster_table)),, drop = F]
     pie.colors <- ifelse(pie.colors>=90,99,pie.colors)
     pie.colors <- ifelse(pie.colors<10&pie.colors>=1,10,pie.colors)
@@ -934,22 +950,22 @@ treebuilding_plot <- function(sample_pyclone_tree) {
         tmp
       }
     })
-
-
+    
+    
     g_dir <- graph.data.frame(pyclone_tree$default_tree,directed = TRUE)
     edges <- get.edgelist(g_dir)
     ecol <- setNames(rep('#bdbdbd', nrow(edges)),edges[,2])# baseline, set edge color to black
     ewidth <- rep(1,length(ecol))
-
+    
     #label consensus edges in other colour
     ecol[paste(edges[,1],edges[,2],sep=":")%in%pyclone_tree$consensus_branches] <- '#000000'
     ewidth[paste(edges[,1],edges[,2],sep=":")%in%pyclone_tree$consensus_branches] <-150
-
+    
     plot(g
          , layout=l
          , main = sampleID
          , vertex.color = vcol[indx]
-         , vertex.frame.color=vcol[indx]
+         , vertex.frame.color=vcol_frame[indx]
          , vertex.shape = node.shape
          , vertex.lwd=5
          , vertex.pie.lwd=3
@@ -963,39 +979,41 @@ treebuilding_plot <- function(sample_pyclone_tree) {
          , vertex.label.dist=0
          , vertex.label.family='Helvetica'
          , vertex.label.font=2
-         , vertex.label.color = 'black')
-
-
+         , vertex.label.color = "black")
+    
+    
+    
     legend.pie(1,1,labels=gsub(paste0(substr(colnames(tmp)[1], 1, 8), "_"), "", colnames(tmp)), radius=0.2, bty="n", col='#bdbdbd',
                cex=1.25, label.dist=0.8
                ,border='white')
-
+    
     snv_clusters <- sort(pyclone_tree$edgelength[indx], decreasing = T)
-
+    
     snv_clusters_removed <- pyclone_tree$edgelength
     snv_clusters_removed <- sort(snv_clusters_removed[!names(snv_clusters_removed) %in% indx], decreasing = T)
     if(!is.na(cpn_removed_clusters[1]))
     {
       snv_clusters_removed <- c(snv_clusters_removed,table(sample_pyclone_tree$ccf_table_pyclone[,'PycloneCluster'])[cpn_removed_clusters])
     }
-
+    
     tmp <- legend('topright', inset = c(-0.3, 0), legend = paste(names(snv_clusters), ' (', snv_clusters,' SNVs)', sep = ''), col = vcol[names(snv_clusters)], pch = 19, title = 'Clusters included:', bty = 'n')  ## inset option controls how far from x and y margins
+    legend("right", inset = c(-0.3,0), legend = c("Clonal", "Subclonal"), fill = c("purple", "orange"), title = "Clonality", cex = 1.2, xpd = TRUE, bty = "n")
     if (length(snv_clusters_removed) > 0) {
       if(!is.na(cpn_removed_clusters[1]))
       {
         to_plot <- table(sample_pyclone_tree$ccf_table_pyclone[,'PycloneCluster'])[cpn_removed_clusters]
         legend(x=tmp$rect$left,y = 0,inset = c(-0.3, 0),legend = paste(names(to_plot), ' (', to_plot, ' SNVs)', sep = ''), col = vcol[names(to_plot)], pch = 19, title = 'Copy# clusters removed:', bty = 'n')
-
+        
       }
       legend('bottomright', inset = c(-0.3, 0), legend = paste(names(snv_clusters_removed), ' (', snv_clusters_removed, ' SNVs)', sep = ''), col = vcol[names(snv_clusters_removed)], pch = 19, title = 'Clusters removed:', bty = 'n')
     }
-
-
-
-
+    
+    
+    
+    
   }
   dev.off()
-
+  
   #next, plot all the possible trees
   trees.to.plot <- pyclone_tree$alt_trees
   if(length(trees.to.plot)==0)
@@ -1004,29 +1022,29 @@ treebuilding_plot <- function(sample_pyclone_tree) {
   }
   if(length(trees.to.plot)!=0)
   {
-
+    
     date <- gsub('-', '', substr(Sys.time(), 1, 10))
-
+    
     pdfname <- file.path(generalSave, 'pytree_multipletrees.pdf')
-
+    
     mult.factor <- ceiling(length(trees.to.plot)/50)
-
+    
     pdf(pdfname, width=12*mult.factor, height=12*mult.factor)
     {
       nr.trees              <- length(trees.to.plot)
       columnnum             <- 1
       rownum                <- nr.trees/columnnum
-
+      
       if(nr.trees<=50)
       {
         nr.to.use <- nr.trees
       }
-
+      
       if(nr.trees>50)
       {
         nr.to.use <- signif(nr.trees+5,2)
       }
-
+      
       for(i in 1: nr.to.use) {
         if((nr.to.use %% i) == 0) {
           if((i+(nr.to.use/i))<(columnnum+rownum))
@@ -1036,13 +1054,13 @@ treebuilding_plot <- function(sample_pyclone_tree) {
           }
         }
       }
-
+      
       if(columnnum==1)
       {
         columnnum <- ceiling(columnnum*2)
         rownum    <- ceiling(rownum/2)
       }
-
+      
       par(mfrow=c(rownum,columnnum),xpd=TRUE,mar=c(1, 1,1, 1))
       for (i in 1:nr.trees)
       {
@@ -1050,18 +1068,18 @@ treebuilding_plot <- function(sample_pyclone_tree) {
         g <- graph.data.frame(auto_tree,directed = FALSE)
         indx <- V(g)$name
         vcol <- setNames(color.tree(pyclone_tree$edgelength), names(pyclone_tree$edgelength))[indx]
-
+        
         l <- layout_as_tree(g, root = pyclone_tree$trunk)
-
+        
         pie.size <- ncol(nested_pyclone$ccf_cluster_table)
         node.shape <- setNames(rep('pie', length(vcol)), names(vcol))
         pie.slices <- lapply(1:length(vcol), function(x) rep(1, pie.size))
         empty.col = 'gray85'
-
+        
         node_size_factor <- log2(max(pyclone_tree$edgelength)) / 30
         node.size <- log2(pyclone_tree$edgelength) / node_size_factor
         node.size <- node.size[names(node.shape)]
-
+        
         pie.colors <- nested_pyclone$ccf_cluster_table[match(names(vcol), rownames(nested_pyclone$ccf_cluster_table)),, drop = F]
         pie.colors <- lapply(1:nrow(pie.colors), function(x) {
           if(!all(is.na(pie.colors[x,]))){
@@ -1071,16 +1089,16 @@ treebuilding_plot <- function(sample_pyclone_tree) {
             tmp
           }
         })
-
+        
         g_dir <- graph.data.frame(auto_tree,directed = TRUE)
         edges <- get.edgelist(g_dir)
         ecol <- setNames(rep('#bdbdbd', nrow(edges)),edges[,2])# baseline, set edge color to black
         ewidth <- rep(1,length(ecol))
-
+        
         #label consensus edges in other colour
         ecol[paste(edges[,1],edges[,2],sep=":")%in%pyclone_tree$consensus_branches] <- '#000000'
         ewidth[paste(edges[,1],edges[,2],sep=":")%in%pyclone_tree$consensus_branches] <- 2
-
+        
         plot(g, main = sampleID
              , layout = l
              , vertex.color = vcol[indx]
@@ -1095,9 +1113,9 @@ treebuilding_plot <- function(sample_pyclone_tree) {
              ,arrow.width=0
              ,arrow.mode=0
         )
-
+        
       }
-
+      
     }
     dev.off()
   }
