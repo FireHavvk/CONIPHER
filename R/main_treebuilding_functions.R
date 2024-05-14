@@ -818,7 +818,7 @@ treebuilding_plot <- function(sample_pyclone_tree) {
   adjust_noisy_clusters_prop <- sample_pyclone_tree$parameters$adjust_noisy_clusters_prop
   min_ccf <- sample_pyclone_tree$parameters$min_ccf
   min_cluster_size           <- sample_pyclone_tree$parameters$min_cluster_size
-  #labels <- sample_pyclone_tree$sampleLable
+  labels <- sample_pyclone_tree$sampleLable
   #variants <- sample_pyclone_tree$variants
   
   nested_pyclone <- sample_pyclone_tree$nested_pyclone
@@ -909,9 +909,6 @@ treebuilding_plot <- function(sample_pyclone_tree) {
         text(x=bp[bar],y=25,labels=nested_pyclone$ccf_cluster_table[j,bar],cex =1.5)
       }
     }
-    #plot.new()
-    #par(mar=c(2,2,2,2))
-    #legend("top", legend = c("Clonal", "Subclonal"), fill = c("purple", "orange"), title = "Clonality", cex = 1.2, xpd = TRUE, ncol = 2, bty = "n")
     
     plot.new()
     par(mar=c(2.1, 2.1, 4.1, 38), xpd=TRUE)
@@ -983,7 +980,7 @@ treebuilding_plot <- function(sample_pyclone_tree) {
     
     
     
-    legend.pie(1,1,labels=gsub(paste0(substr(colnames(tmp)[1], 1, 8), "_"), "", colnames(tmp)), radius=0.2, bty="n", col='#bdbdbd',
+    legend.pie(1,1,labels=labels, radius=0.2, bty="n", col='#bdbdbd',
                cex=1.25, label.dist=0.8
                ,border='white')
     
@@ -1120,7 +1117,3 @@ treebuilding_plot <- function(sample_pyclone_tree) {
     dev.off()
   }
 }
-
-
-
-
